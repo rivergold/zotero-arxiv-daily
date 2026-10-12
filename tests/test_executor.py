@@ -148,8 +148,9 @@ def test_fetch_zotero_corpus_paper_with_zero_collections(config, monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_run_end_to_end(config, monkeypatch):
-    """Full pipeline: Zotero fetch -> filter -> retrieve -> rerank -> TLDR -> email."""
+@pytest.mark.parametrize("channel", ["pushplus", "email"])
+def test_run_end_to_end(config, monkeypatch, channel):
+    """Full pipeline with both notification delivery channels."""
     import smtplib
 
     from omegaconf import open_dict
@@ -165,6 +166,7 @@ def test_run_end_to_end(config, monkeypatch):
     # Config: source=["arxiv"], reranker="api", send_empty=false
     with open_dict(config):
         config.executor.source = ["arxiv"]
+        config.notification.channel = channel
         config.executor.reranker = "api"
         config.executor.send_empty = False
 
@@ -192,9 +194,12 @@ def test_run_end_to_end(config, monkeypatch):
         lambda self: retrieved,
     )
 
-    # 4. Stub SMTP
+    # 4. Stub delivery without sending real notifications.
     sent = []
-    monkeypatch.setattr(smtplib, "SMTP", make_stub_smtp(sent))
+    if channel == "email":
+        monkeypatch.setattr(smtplib, "SMTP", make_stub_smtp(sent))
+    else:
+        monkeypatch.setattr("zotero_arxiv_daily.notification.send_pushplus", lambda cfg, html: sent.append(html))
 
     # 5. Stub sleep (reranker/retriever)
     monkeypatch.setattr("zotero_arxiv_daily.retriever.base.sleep", lambda _: None)
@@ -204,18 +209,21 @@ def test_run_end_to_end(config, monkeypatch):
     executor.run()
 
     # Assertions
-    assert len(sent) == 1, "Email should have been sent"
-    _, _, email_body = sent[0]
-    assert "text/html" in email_body
+    assert len(sent) == 1, "Notification should have been sent"
+    if channel == "email":
+        _, _, email_body = sent[0]
+        assert "text/html" in email_body
+    else:
+        assert "E2E Paper 1" in sent[0]
+        assert "E2E Paper 2" in sent[0]
 
 
 def test_run_no_papers_send_empty_false(config, monkeypatch):
-    """When no papers are found and send_empty=false, no email is sent."""
-    import smtplib
+    """When no papers are found and send_empty=false, no notification is sent."""
 
     from omegaconf import open_dict
 
-    from tests.canned_responses import make_stub_openai_client, make_stub_smtp, make_stub_zotero_client
+    from tests.canned_responses import make_stub_openai_client, make_stub_zotero_client
 
     with open_dict(config):
         config.executor.source = ["arxiv"]
@@ -236,22 +244,21 @@ def test_run_no_papers_send_empty_false(config, monkeypatch):
     monkeypatch.setattr(registered_retrievers["arxiv"], "retrieve_papers", lambda self: [])
 
     sent = []
-    monkeypatch.setattr(smtplib, "SMTP", make_stub_smtp(sent))
+    monkeypatch.setattr("zotero_arxiv_daily.notification.send_pushplus", lambda cfg, html: sent.append(html))
     monkeypatch.setattr("zotero_arxiv_daily.retriever.base.sleep", lambda _: None)
 
     executor = Executor(config)
     executor.run()
 
-    assert len(sent) == 0, "No email should be sent when no papers and send_empty=false"
+    assert len(sent) == 0, "No notification should be sent when no papers and send_empty=false"
 
 
 def test_run_no_papers_send_empty_true(config, monkeypatch):
-    """When no papers are found and send_empty=true, empty email is sent."""
-    import smtplib
+    """When no papers are found and send_empty=true, empty notification is sent."""
 
     from omegaconf import open_dict
 
-    from tests.canned_responses import make_stub_openai_client, make_stub_smtp, make_stub_zotero_client
+    from tests.canned_responses import make_stub_openai_client, make_stub_zotero_client
 
     with open_dict(config):
         config.executor.source = ["arxiv"]
@@ -272,12 +279,11 @@ def test_run_no_papers_send_empty_true(config, monkeypatch):
     monkeypatch.setattr(registered_retrievers["arxiv"], "retrieve_papers", lambda self: [])
 
     sent = []
-    monkeypatch.setattr(smtplib, "SMTP", make_stub_smtp(sent))
+    monkeypatch.setattr("zotero_arxiv_daily.notification.send_pushplus", lambda cfg, html: sent.append(html))
     monkeypatch.setattr("zotero_arxiv_daily.retriever.base.sleep", lambda _: None)
 
     executor = Executor(config)
     executor.run()
 
-    assert len(sent) == 1, "Email should be sent even with no papers when send_empty=true"
-    _, _, body = sent[0]
-    assert "text/html" in body
+    assert len(sent) == 1, "Notification should be sent even with no papers when send_empty=true"
+    assert "No Papers Today" in sent[0]

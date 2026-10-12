@@ -33,7 +33,7 @@ framework = """
 
 <br><br>
 <div>
-To unsubscribe, remove your email in your Github Action setting.
+To stop receiving daily recommendations, disable the scheduled GitHub Actions workflow.
 </div>
 
 </body>
