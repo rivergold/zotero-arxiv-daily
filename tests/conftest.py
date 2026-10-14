@@ -28,6 +28,7 @@ def _base_config():
                 "zotero.api_key=fake-zotero-key",
                 "zotero.include_path=null",
                 "zotero.ignore_path=null",
+                "pushplus.token=fake-pushplus-token",
                 "email.sender=test@example.com",
                 "email.receiver=test@example.com",
                 "email.smtp_server=localhost",

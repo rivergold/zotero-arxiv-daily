@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Zotero-arXiv-Daily recommends new arXiv/bioRxiv/medRxiv/chemRxiv papers based on a user's Zotero library. It computes embedding similarity between new papers and the user's existing library, generates TLDRs via LLM, and delivers results by email. Designed to run as a GitHub Actions workflow at zero cost.
+Zotero-arXiv-Daily recommends new arXiv/bioRxiv/medRxiv/chemRxiv papers based on a user's Zotero library. It computes embedding similarity between new papers and the user's existing library, generates TLDRs via LLM, and delivers results through PushPlus by default (SMTP is optional). Designed to run as a GitHub Actions workflow at zero cost.
 
 ## Commands
 
@@ -36,7 +36,7 @@ The app follows a linear pipeline orchestrated by `Executor` (`src/zotero_arxiv_
 3. **Retrieve new papers** — fetches from configured sources (arXiv RSS, bioRxiv/medRxiv REST API, chemRxiv via Crossref REST API)
 4. **Rerank** — scores candidates by weighted similarity to corpus (newer Zotero papers weighted higher)
 5. **Generate TLDRs + affiliations** — via OpenAI-compatible LLM API
-6. **Render + send email** — HTML email via SMTP
+6. **Render + send notification** — HTML digest via PushPlus HTTPS API, or SMTP when configured
 
 ### Plugin Systems
 
@@ -45,6 +45,8 @@ The app follows a linear pipeline orchestrated by `Executor` (`src/zotero_arxiv_
 **Rerankers** (`src/zotero_arxiv_daily/reranker/`): Register via `@register_reranker` decorator, discovered by `get_reranker_cls()`. Two implementations: `local` (sentence-transformers) and `api` (OpenAI-compatible embeddings endpoint).
 
 ### Configuration
+
+Delivery is selected with `notification.channel` (`pushplus` by default, or `email`). PushPlus uses `PUSHPLUS_TOKEN`, an optional group `topic`, and a configurable HTTP timeout. API acceptance is asynchronous and does not confirm final delivery.
 
 Uses Hydra + OmegaConf. Config is composed from `config/base.yaml` (defaults) + `config/custom.yaml` (user overrides). Environment variables are interpolated via `${oc.env:VAR_NAME,default}` syntax. Entry point uses `@hydra.main`.
 

@@ -29,13 +29,13 @@
 
 > Track new scientific researches of your interest by just forking (and staring) this repo!😊
 
-*Zotero-arXiv-Daily* finds arxiv papers that may attract you based on the context of your Zotero library, and then sends the result to your mailbox📮. It can be deployed as Github Action Workflow with **zero cost**, **no installation**, and **few configuration** of Github Action environment variables for daily **automatic** delivery.
+*Zotero-arXiv-Daily* finds arxiv papers that may attract you based on the context of your Zotero library, and then sends the result to WeChat through PushPlus. It can be deployed as Github Action Workflow with **zero cost**, **no installation**, and **few configuration** of Github Action environment variables for daily **automatic** delivery.
 
 ## ✨ Features
 - Totally free! All the calculation can be done in the Github Action runner locally within its quota (for public repo).
 - AI-generated TL;DR for you to quickly pick up target papers.
 - Affiliations of the paper are resolved and presented.
-- Links of PDF and code implementation (if any) presented in the e-mail.
+- Links of PDF and code implementation (if any) presented in the notification.
 - List of papers sorted by relevance with your recent research interest.
 - Fast deployment via fork this repo and set environment variables in the Github Action Page.
 - Support LLM API for generating TL;DR of papers.
@@ -63,9 +63,7 @@ Below are all the secrets you need to set. They are invisible to anyone includin
 | :---  | :---  | :--- |
 | ZOTERO_ID  | User ID of your Zotero account. **User ID is not your username, but a sequence of numbers**Get your ID from [here](https://www.zotero.org/settings/security). You can find it at the position shown in this [screenshot](https://github.com/TideDra/zotero-arxiv-daily/blob/main/assets/userid.png). | 12345678  |
 | ZOTERO_KEY | An Zotero API key with read access. Get a key from [here](https://www.zotero.org/settings/security).  | AB5tZ877P2j7Sm2Mragq041H   |
-| SENDER | The email account of the SMTP server that sends you email. | abc@qq.com |
-| SENDER_PASSWORD | The password of the sender account. Note that it's not necessarily the password for logging in the e-mail client, but the authentication code for SMTP service. Ask your email provider for this.   | abcdefghijklmn |
-| RECEIVER | The e-mail address that receives the paper list. | abc@outlook.com |
+| PUSHPLUS_TOKEN | PushPlus user token or message token. Obtain it from [PushPlus](https://www.pushplus.plus/) after configuring your WeChat account. | your-pushplus-token |
 | OPENAI_API_KEY | API Key when using the API to access LLMs. You can get FREE API for using advanced open source LLMs in [SiliconFlow](https://cloud.siliconflow.cn/i/b3XhBRAm). | sk-xxx |
 | OPENAI_API_BASE | API URL when using the API to access LLMs. | https://api.siliconflow.cn/v1 |
 
@@ -79,12 +77,12 @@ zotero:
   api_key: ${oc.env:ZOTERO_KEY}
   include_path: null # Or e.g. ["2026/survey/**", "2026/reading-group/**"]
 
-email:
-  sender: ${oc.env:SENDER}
-  receiver: ${oc.env:RECEIVER}
-  smtp_server: smtp.qq.com
-  smtp_port: 465
-  sender_password: ${oc.env:SENDER_PASSWORD}
+notification:
+  channel: pushplus
+
+pushplus:
+  token: ${oc.env:PUSHPLUS_TOKEN,null}
+  topic: null # Optional group code; null sends only to yourself.
 
 llm:
   api:
@@ -125,7 +123,15 @@ source:
   chemrxiv:
     include_new_versions: false # Whether to include revised versions (v2, v3, ...) of previously posted chemrxiv preprints in addition to new first postings. chemrxiv has no category filter: all new preprints (a few dozen per day) are retrieved via Crossref and left to the reranker. Example: true
 
-email:
+notification:
+  channel: pushplus # pushplus or email
+
+pushplus:
+  token: ${oc.env:PUSHPLUS_TOKEN,null}
+  topic: null # Optional group code.
+  timeout: 30 # HTTP timeout in seconds.
+
+email: # Only required when notification.channel is email.
   sender: ??? # The email account of the SMTP server that sends you email. Example: abc@qq.com
   receiver: ??? # The email account that receives the paper list. Example: abc@outlook.com
   smtp_server: ??? # The SMTP server that sends the email. Ask your email provider (Gmail, QQ, Outlook, ...) for its SMTP server. Example: smtp.qq.com
@@ -158,8 +164,8 @@ reranker:
 
 executor:
   debug: false # Whether to use debug mode. Example: true
-  send_empty: false # Whether to send an empty email even if no new papers today. Example: true
-  max_paper_num: 100 # The maximum number of the papers presented in the email. Example: 100
+  send_empty: false # Whether to send an empty notification even if no new papers today. Example: true
+  max_paper_num: 100 # The maximum number of the papers presented in the notification. Example: 100
   source: ??? # The sources of papers to retrieve. Example: ['arxiv','biorxiv','medrxiv','chemrxiv']
   reranker: local # The reranker to use. Example: 'local' or 'api'
 ```
@@ -168,11 +174,29 @@ That's all! Now you can test the workflow by manually triggering it:
 ![test](./assets/test.png)
 
 > [!NOTE]
-> The Test-Workflow Action is the debug version of the main workflow (Send-emails-daily), which always retrieve 5 arxiv papers regardless of the date. While the main workflow will be automatically triggered everyday and retrieve new papers released yesterday. There is no new arxiv paper at weekends and holiday, in which case you may see "No new papers found" in the log of main workflow.
+> The Test-Workflow Action is the debug version of the main workflow (Send-notifications-daily), which always retrieve 5 arxiv papers regardless of the date. While the main workflow will be automatically triggered everyday and retrieve new papers released yesterday. There is no new arxiv paper at weekends and holiday, in which case you may see "No new papers found" in the log of main workflow.
 
-Then check the log and the receiver email after it finishes.
+Then check the log and your PushPlus WeChat notification after it finishes. A successful API response means PushPlus accepted the request; final delivery is asynchronous.
 
 By default, the main workflow runs on 22:00 UTC everyday. You can change this time by editting the workflow config `.github/workflows/main.yml`.
+
+### Switching from email to PushPlus
+
+Add the GitHub Actions secret `PUSHPLUS_TOKEN` and update your existing `CUSTOM_CONFIG` with:
+
+```yaml
+notification:
+  channel: pushplus
+pushplus:
+  token: ${oc.env:PUSHPLUS_TOKEN,null}
+  topic: null
+```
+
+The Zotero, reranker, and LLM settings stay the same. SMTP secrets are no longer required for PushPlus. For local runs, set `PUSHPLUS_TOKEN` in your environment or `.env` file. Set `pushplus.topic` to your group code for group delivery.
+
+To continue using SMTP, set `notification.channel: email` and supply the `email` settings from the full configuration above (using `SENDER`, `RECEIVER`, and `SENDER_PASSWORD` if desired). There is no automatic fallback to email when PushPlus fails.
+
+Requests use HTTPS with a JSON body and the HTML template. HTTP errors, invalid responses, and PushPlus rejection codes fail the run. See the [official PushPlus API documentation](https://www.pushplus.plus/doc/guide/api.html).
 
 ### Local Running
 Supported by [uv](https://github.com/astral-sh/uv), this workflow can easily run on your local device if uv is installed:
@@ -181,7 +205,7 @@ Supported by [uv](https://github.com/astral-sh/uv), this workflow can easily run
 # export ZOTERO_ID=xxxx
 # ...
 cd zotero-arxiv-daily
-uv run main.py
+uv run src/zotero_arxiv_daily/main.py
 ```
 
 ## 🚀 Sync with the latest version

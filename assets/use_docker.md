@@ -36,11 +36,7 @@ environment:
       # 必填参数（示例值）
       - ZOTERO_ID=1234567
       - ZOTERO_KEY=AbCdEfGhIjKlMnOpQrStUvWx
-      - SMTP_SERVER=smtp.example.com
-      - SMTP_PORT=465
-      - SENDER=your_email@example.com
-      - SENDER_PASSWORD=your_email_password
-      - RECEIVER=receiver_email@example.com
+      - PUSHPLUS_TOKEN=your_pushplus_token
 
       # 可选参数（带默认值）
       - ZOTERO_IGNORE=already_read_papers
