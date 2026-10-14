@@ -2,7 +2,7 @@ name: Send notifications daily
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 22 * * *'
+    - cron: '15 1 * * *' # 北京时间每天 09:15（UTC+8）
 
 jobs:
   calculate-and-send:
