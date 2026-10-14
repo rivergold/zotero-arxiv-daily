@@ -4,7 +4,7 @@ from arxiv import Result as ArxivResult
 from ..protocol import Paper
 from ..utils import extract_markdown_from_pdf, extract_tex_code_from_tar
 import calendar
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import multiprocessing
 import os
 from queue import Empty
@@ -13,6 +13,7 @@ from tempfile import TemporaryDirectory
 import time
 from time import sleep
 from typing import Any, Callable, TypeVar
+from urllib.parse import urlencode
 from loguru import logger
 import requests
 import feedparser
@@ -214,10 +215,31 @@ class ArxivRetriever(BaseRetriever):
         if self.config.source.arxiv.category is None:
             raise ValueError("category must be specified for arxiv.")
 
+    def _build_rss_url(self, keywords) -> str:
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(days=30)
+        start_date = start_time.strftime("%Y%m%d%H%M")
+        end_date = end_time.strftime("%Y%m%d%H%M")
+
+        keyword_query = " OR ".join(f'all:"{keyword}"' for keyword in keywords)
+        date_query = f"submittedDate:[{start_date} TO {end_date}]"
+        search_query = f"({keyword_query}) AND {date_query}"
+
+        params = {
+            "search_query": search_query,
+            "sortBy": "relevance",
+            "sortOrder": "descending",
+            # "max_results": 100,
+            "max_results": 100,
+        }
+        return "https://export.arxiv.org/api/query?" + urlencode(params)
+
     def _retrieve_raw_papers(self) -> list[ArxivResult]:
         query = '+'.join(self.config.source.arxiv.category)
         include_cross_list = self.config.source.arxiv.get("include_cross_list", False)
-        rss_url = f"https://rss.arxiv.org/atom/{query}"
+        # rss_url = f"https://rss.arxiv.org/atom/{query}"
+        rss_url = self._build_rss_url(self.config.source.arxiv.category)
+        print(f"Fetching arxiv RSS feed from: {rss_url}")
 
         # Get latest papers from arxiv RSS feed with retry
         retry_num = 5

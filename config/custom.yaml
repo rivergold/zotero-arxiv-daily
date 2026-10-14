@@ -16,11 +16,28 @@ llm:
     base_url: ${oc.env:OPENAI_API_BASE}
   api_mode: chat_completion
   generation_kwargs:
-    model: gpt-4o-mini
+    model: glm-5.3-flash
 
 source:
   arxiv:
-    category: ["cs.AI","cs.CV","cs.LG","cs.CL"]
+    category:
+      - "embodied AI"
+      - "humanoid robot"
+      - "reinforcement learning"
+      - "imitation learning"
+      - "sim2real"
+      - "sim-to-real"
+      # 
+      - "vision-language-action"
+      - "VLA"
+      # 
+      - "Vision-Language Navigation"
+      - "VLN"
+      - "Vision and Language Navigation"
+      # 
+      - "Behavioral Foundation Model"
+      - "whole-body control"
+
 
 executor:
   debug: ${oc.env:DEBUG,null}
