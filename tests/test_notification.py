@@ -73,6 +73,21 @@ def test_pushplus_invalid_response(config, monkeypatch):
         send_pushplus(config, "digest")
 
 
+def test_pushplus_validation_error_reports_message_without_token(config, monkeypatch):
+    body = json.dumps({
+        "code": 999,
+        "msg": f"Validation failed for {config.pushplus.token}: content too long",
+        "data": "private response data",
+    }).encode("utf-8")
+    monkeypatch.setattr("zotero_arxiv_daily.notification.urlopen", lambda *a, **kw: io.BytesIO(body))
+    with pytest.raises(RuntimeError, match="code 999") as exc:
+        send_pushplus(config, "digest")
+    assert "content too long" in str(exc.value)
+    assert "[REDACTED]" in str(exc.value)
+    assert config.pushplus.token not in str(exc.value)
+    assert "private response data" not in str(exc.value)
+
+
 @pytest.mark.parametrize("error", [
     HTTPError("https://www.pushplus.plus/send", 503, "unavailable", {}, None),
     URLError("fake-pushplus-token"),
