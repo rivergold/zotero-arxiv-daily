@@ -17,6 +17,19 @@ def test_render_email_empty_list():
     assert "No Papers Today" in html
 
 
+def test_render_email_with_chinese_tldr():
+    paper = make_sample_paper(tldr="English summary")
+    paper.tldr_zh = "中文摘要：a < b"
+    html = render_email([paper])
+    assert "English summary" in html
+    assert "中文 TLDR:" in html
+    assert "中文摘要：a &lt; b" in html
+
+
+def test_render_email_without_chinese_tldr():
+    assert "中文 TLDR:" not in render_email([make_sample_paper(tldr="English summary")])
+
+
 def test_render_email_author_truncation():
     authors = [f"Author {i}" for i in range(10)]
     paper = make_sample_paper(authors=authors, score=7.0, tldr="ok")

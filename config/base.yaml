@@ -40,6 +40,7 @@ llm:
     max_tokens: 16384
     model: ???
   language: English # Preferred language for the TL;DR. Example: English
+  include_chinese_tldr: false # Add a Simplified Chinese TLDR alongside the primary TLDR.
 
 reranker:
   local:

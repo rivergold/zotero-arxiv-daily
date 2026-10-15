@@ -11,6 +11,7 @@ pushplus:
   topic: null
 
 llm:
+  include_chinese_tldr: true
   api:
     key: ${oc.env:OPENAI_API_KEY}
     base_url: ${oc.env:OPENAI_API_BASE}
@@ -42,3 +43,4 @@ source:
 executor:
   debug: ${oc.env:DEBUG,null}
   source: ['arxiv']
+  max_paper_num: 30

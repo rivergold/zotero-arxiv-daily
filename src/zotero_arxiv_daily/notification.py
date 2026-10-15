@@ -42,9 +42,15 @@ def send_pushplus(config: DictConfig, html: str) -> str | None:
         raise RuntimeError("PushPlus returned an invalid JSON response.") from None
 
     if not isinstance(result, dict) or result.get("code") != 200:
-        # Do not include the response body, which may contain credentials.
+        # Include only the diagnostic message, redacting the configured token.
         code = result.get("code") if isinstance(result, dict) else None
-        raise RuntimeError(f"PushPlus rejected the request (code {code}). Check your token and account limits.")
+        message = result.get("msg") if isinstance(result, dict) else None
+        if isinstance(message, str) and message.strip():
+            message = message.replace(token.strip(), "[REDACTED]")
+            detail = " ".join(message.split())[:500]
+        else:
+            detail = "No error message returned; check PushPlus's latest request history."
+        raise RuntimeError(f"PushPlus rejected the request (code {code}): {detail}")
 
     return result.get("data")
 
