@@ -36,6 +36,43 @@ def test_tldr_without_abstract_or_fulltext(llm_params):
     assert "Failed to generate TLDR" in result
 
 
+@pytest.mark.parametrize("api_mode", ["chat_completion", "response"])
+def test_tldr_adds_chinese_version(llm_params, monkeypatch, api_mode):
+    import zotero_arxiv_daily.protocol as protocol
+
+    llm_params.update(api_mode=api_mode, include_chinese_tldr=True)
+    languages = []
+
+    def request(client, params, messages):
+        languages.append(params["language"])
+        assert params["language"] in messages[0]["content"]
+        return "中文摘要" if params["language"] == "Simplified Chinese" else "English summary"
+
+    monkeypatch.setattr(protocol, "_request_llm", request)
+    paper = make_sample_paper()
+    assert paper.generate_tldr(None, llm_params) == "English summary"
+    assert paper.tldr_zh == "中文摘要"
+    assert languages == ["English", "Simplified Chinese"]
+    assert llm_params["language"] == "English"
+
+
+def test_chinese_tldr_failure_preserves_primary_summary(llm_params, monkeypatch):
+    import zotero_arxiv_daily.protocol as protocol
+
+    llm_params["include_chinese_tldr"] = True
+
+    def request(client, params, messages):
+        if params["language"] == "Simplified Chinese":
+            raise RuntimeError("API down")
+        return "English summary"
+
+    monkeypatch.setattr(protocol, "_request_llm", request)
+    paper = make_sample_paper()
+    paper.tldr_zh = "Stale summary"
+    assert paper.generate_tldr(None, llm_params) == "English summary"
+    assert paper.tldr_zh is None
+
+
 def test_tldr_falls_back_to_abstract_on_error(llm_params):
     paper = make_sample_paper()
 

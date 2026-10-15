@@ -48,6 +48,7 @@ class Paper:
     tldr: Optional[str] = None
     affiliations: Optional[list[str]] = None
     score: Optional[float] = None
+    tldr_zh: Optional[str] = None
 
     def _generate_tldr_with_llm(self, openai_client:OpenAI,llm_params:dict) -> str:
         lang = llm_params.get('language', 'English')
@@ -85,15 +86,22 @@ class Paper:
         return tldr
     
     def generate_tldr(self, openai_client:OpenAI,llm_params:dict) -> str:
+        self.tldr_zh = None
         try:
             tldr = self._generate_tldr_with_llm(openai_client,llm_params)
             self.tldr = tldr
-            return tldr
         except Exception as e:
             logger.warning(f"Failed to generate tldr of {self.url}: {e}")
             tldr = self.abstract
             self.tldr = tldr
-            return tldr
+        if llm_params.get("include_chinese_tldr", False) and (self.abstract or self.full_text):
+            try:
+                self.tldr_zh = self._generate_tldr_with_llm(
+                    openai_client, {**llm_params, "language": "Simplified Chinese"}
+                )
+            except Exception as e:
+                logger.warning(f"Failed to generate Chinese tldr of {self.url}: {e}")
+        return tldr
 
     def _generate_affiliations_with_llm(self, openai_client:OpenAI,llm_params:dict) -> Optional[list[str]]:
         if self.full_text is not None:
